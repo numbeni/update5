@@ -1,0 +1,201 @@
+با توجه به بررسی کدی که کردم، پرامپت حرفه‌ای رو می‌نویسم:
+
+---
+
+**PRODUCT CHECK — Full Integration Fix & UX Overhaul**
+
+Before making any changes, thoroughly read and understand the following files:
+- `artifacts/api-server/src/monitoring/engine.ts`
+- `artifacts/api-server/src/monitoring/product-check.ts`
+- `artifacts/api-server/src/monitoring/incidents.ts`
+- `artifacts/noc-monitor/src/pages/dashboard.tsx`
+- `artifacts/noc-monitor/src/pages/site-detail.tsx`
+- `artifacts/noc-monitor/src/components/status-badge.tsx`
+- `artifacts/noc-monitor/src/components/critical-events-popup.tsx`
+- `artifacts/noc-monitor/src/i18n/translations.ts`
+
+Do not assume anything. Read the actual code first.
+
+---
+
+## 1. Fix: unknown and failed both mean negative result
+
+**Current behavior (WRONG):**
+When product check cannot find any `/product/` links → returns `unknown`.
+When it finds links but none respond → returns `failed`.
+`unknown` currently has no status impact — site stays `up`.
+
+**Required behavior:**
+Both `unknown` AND `failed` must be treated as a negative product check result.
+Both must trigger the same outcome:
+- `result.overallStatus = "degraded"`
+- `result.errorType = "product_page_issue"`
+- `result.errorMessage = "Product pages not responding"`
+
+In `engine.ts`, change the status impact condition from:
+```ts
+if (pcResult.status === "failed" && ...)
+```
+to:
+```ts
+if ((pcResult.status === "failed" || pcResult.status === "unknown") && ...)
+```
+
+Do not change `product-check.ts`. The `unknown` status remains valid as a return value. Only the engine's reaction to it changes.
+
+---
+
+## 2. Fix: Incidents must use product_page_issue type, not application_issue
+
+**Current behavior (WRONG):**
+In `incidents.ts`, when `overallStatus === "degraded"`, incident type is always forced to `"application_issue"` regardless of `errorType`.
+
+**Required behavior:**
+When `errorType === "product_page_issue"`, incident type must be `"product_page_issue"`.
+
+Fix the `getIncidentType` function in `incidents.ts`:
+```ts
+if (check.overallStatus === "degraded") {
+  if (check.errorType === "product_page_issue") return "product_page_issue";
+  return "application_issue";
+}
+```
+
+Incident title for `product_page_issue` must be: **"Product pages unreachable"**
+Incident severity must be: `"warning"`
+
+---
+
+## 3. Fix: degraded sites must appear in the Critical Bar
+
+**Current behavior (WRONG):**
+The critical bar (top bar in dashboard) only shows `down` sites.
+`degraded` sites (including product page issues and blocked sites) stay in the main list and are never surfaced to the critical bar.
+
+**Required behavior:**
+The critical bar must include ALL of: `down`, `degraded`, `blocked` sites.
+Operators must immediately see product page failures and blocked sites at the top without scrolling.
+
+Update the critical bar filtering logic in `dashboard.tsx` to include `degraded` and `blocked` alongside `down`.
+
+---
+
+## 4. Fix: Context menu must toggle correctly
+
+**Current behavior (WRONG):**
+Right-click context menu always shows "Enable Product Check" even when it is already enabled.
+"Disable Product Check" never appears.
+
+**Required behavior:**
+Context menu must be conditional:
+- If `site.productCheckEnabled === true` → show **"Disable Product Check"**
+- If `site.productCheckEnabled === false` → show **"Enable Product Check"**
+
+This applies to both grid and list views in `dashboard.tsx`.
+
+---
+
+## 5. Add: Product Check badge on site cards
+
+**Required behavior:**
+In both grid view and list view in `dashboard.tsx`, when `site.productCheckEnabled === true`, display a small visible badge or icon on the site card.
+
+Use the `Package` icon (already imported from lucide-react in the project).
+Badge must be compact and non-intrusive — similar in style to the existing `alsoShop` badge.
+Badge must be visible in both normal and degraded/down states.
+
+Do NOT add the badge when `productCheckEnabled === false`.
+
+---
+
+## 6. Fix: Degraded cause must be clearly labeled in dashboard cards
+
+**Current behavior:**
+All `degraded` sites show a generic label. The operator cannot tell whether it is a product page issue, a blocked site, or something else.
+
+**Required behavior:**
+In site cards (both grid and list), when `overallStatus === "degraded"`:
+- If `errorType === "product_page_issue"` → show: **"Product pages not responding"**
+- If `errorType === "blocked"` or status is `blocked` → show: **"Site is blocked"**
+- Otherwise → show existing generic degraded label
+
+Update `getCauseLabel` or equivalent function in `dashboard.tsx`.
+
+---
+
+## 7. Fix: Reduce Live Console noise for product check
+
+**Current behavior (WRONG):**
+Product check emits 5 separate console events per site:
+1. `product check: starting`
+2. `product check: fetching homepage`
+3. `product check: scanning for /product/* links`
+4. `product check: checking /product/example/ (1/3)`
+5. `product check: ok (1/1 ok) — 35ms`
+
+This floods the console and makes it hard to read.
+
+**Required behavior:**
+Emit only **2** console events per product check:
+
+**Event 1** — at start:
+```
+product check → <sitename>
+```
+
+**Event 2** — at completion (one of):
+```
+product ok — /product/example-slug/ (42ms)
+product failed — no pages responded (312ms)
+product unknown — no /product/* links found (701ms)
+product error — homepage unreachable (timeout)
+```
+
+Remove all intermediate events (`fetching_homepage`, `discovering`, `probing` per URL).
+
+Update `engine.ts` only. Do not change `product-check.ts`.
+
+---
+
+## 8. Add: Product check result in site detail Recent Checks
+
+**Required behavior:**
+In `site-detail.tsx`, in the Recent Checks section, each check row that was performed while `productCheckEnabled` was true must show the product check outcome.
+
+Display a compact inline badge next to the existing status badge:
+- `ok` → green `Product OK`
+- `failed` or `unknown` → orange `Product Issue`
+- `error` → red `Product Error`
+- `skipped` → nothing shown
+
+Read this from the existing `productCheckResult` JSON field already stored in the database per check.
+Do NOT create new database fields or new API endpoints for this.
+
+---
+
+## 9. Consistency requirement
+
+After all changes, verify:
+
+1. A site with `productCheckEnabled = true` where product check returns `failed` OR `unknown`:
+   - `overallStatus` becomes `degraded`
+   - `errorType` becomes `product_page_issue`
+   - Incident is created with type `product_page_issue` and title "Product pages unreachable"
+   - Site appears in critical bar
+   - Dashboard card shows "Product pages not responding"
+   - Console shows exactly 2 events
+
+2. A site with `productCheckEnabled = true` where product check returns `ok`:
+   - `overallStatus` remains unchanged
+   - No incident created
+   - Dashboard card shows `Product OK` badge
+   - Console shows exactly 2 events
+
+3. Right-click context menu correctly toggles between enable and disable.
+
+4. Product Check badge is visible on cards for enabled sites.
+
+Do not break any existing functionality.
+Do not redesign any existing UI component.
+Do not create new services, new endpoints, or new monitoring loops.
+Only fix what is described above.

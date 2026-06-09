@@ -1,0 +1,236 @@
+# Feature Request: All-In-One Import / Export for Sites & Servers
+
+Implement a new feature in the Dashboard to allow operators to easily backup and restore the entire monitoring configuration using a simple human-readable text format.
+
+## Goal
+
+Operators should be able to:
+
+1. Export all existing servers and sites into a plain text format.
+2. Import the same text format later.
+3. Automatically create missing servers.
+4. Automatically append sites to existing servers.
+5. Easily maintain backups between software updates.
+
+---
+
+# UI Requirements
+
+## Import Section
+
+In the Dashboard, next to:
+
+* Monitor a New Site
+* Bulk Import Sites
+
+add a new button:
+
+### Add All-In-One
+
+When clicked, open a modal/dialog containing:
+
+### Text Area
+
+Large textarea for pasting the import content.
+
+### Example Format Box
+
+Display a read-only example directly above the textarea.
+
+Example:
+
+```text
+Main Server | SRV001
+https://site1.com
+https://site2.com
+https://site3.com
+
+Backup Server | SRV002
+https://site4.com
+https://site5.com
+
+Europe Node | EU001
+https://site6.com
+```
+
+### Import Button
+
+Button:
+
+```text
+Import Configuration
+```
+
+---
+
+# Import Logic
+
+## Server Definition
+
+A line containing:
+
+```text
+Server Name | Server Code
+```
+
+defines the active server.
+
+Examples:
+
+```text
+Main Server | SRV001
+Backup Server | SRV002
+```
+
+Rules:
+
+* Trim spaces.
+* Ignore duplicate spaces.
+* Server name is required.
+* Server code is required.
+
+---
+
+## Site Definition
+
+Any valid URL line after a server definition belongs to the currently active server.
+
+Example:
+
+```text
+Main Server | SRV001
+https://site1.com
+https://site2.com
+```
+
+Both sites belong to Main Server.
+
+---
+
+## Existing Server Handling
+
+When importing:
+
+### If server already exists
+
+Match by server code first.
+
+If found:
+
+* Do NOT create a new server.
+* Append new sites to existing server.
+* Skip duplicate sites.
+
+### If server does not exist
+
+Create it automatically.
+
+---
+
+## Duplicate Site Rules
+
+For each server:
+
+If a site URL already exists under that server:
+
+* Skip it.
+* Do not create duplicates.
+
+Show total skipped count in result summary.
+
+---
+
+## Validation
+
+Validate:
+
+* Empty server names
+* Empty server codes
+* Invalid URLs
+* URLs without an active server section
+
+Show friendly validation errors.
+
+---
+
+# Export Feature
+
+Add a new Dashboard button:
+
+### Export Configuration
+
+When clicked:
+
+1. Read all servers.
+2. Read all sites belonging to each server.
+3. Generate text using the exact same import format.
+
+Example:
+
+```text
+Main Server | SRV001
+https://site1.com
+https://site2.com
+
+Backup Server | SRV002
+https://site4.com
+https://site5.com
+```
+
+---
+
+# Export Modal
+
+Show generated text inside a textarea.
+
+Provide:
+
+### Copy to Clipboard
+
+Button:
+
+```text
+Copy Configuration
+```
+
+### Download File
+
+Button:
+
+```text
+Download Backup
+```
+
+Filename:
+
+```text
+monitoring-config.txt
+```
+
+---
+
+# Import Summary
+
+After successful import show a summary:
+
+```text
+Servers Created: X
+Servers Reused: X
+Sites Added: X
+Sites Skipped: X
+Errors: X
+```
+
+---
+
+# Technical Requirements
+
+* Reuse existing server/site creation logic whenever possible.
+* Use database transactions for import operations.
+* Prevent partial imports when a fatal error occurs.
+* Maintain current permission/authentication checks.
+* Follow existing project UI style and component library.
+* Ensure import/export format remains fully reversible (exported data can be imported back without modification).
+
+Expected Result:
+Operators can backup the entire monitoring configuration as plain text and later restore it with a single paste operation.

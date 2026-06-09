@@ -1,0 +1,215 @@
+# Feature Request: Global "/shop Fallback Override" + Per-Site "also /shop" Mode
+
+Please analyze the entire project before making changes.
+
+The project already contains a `/shop` fallback mechanism (`shopFallbackOk()` in monitoring engine), but the current implementation is incomplete.
+
+## Current Problem
+
+At the moment:
+
+* During server rechecks and final rechecks, the system may test both:
+
+  * `https://example.com`
+  * `https://example.com/shop`
+* Live Console correctly shows successful `/shop` responses.
+* However, even when `/shop` returns a positive result (`up` or `slow`), the site may still remain in:
+
+  * Critical Bar
+  * Down lists
+  * Active incident state
+  * Down counters
+  * Other UI locations showing the site as down
+
+This creates a mismatch between monitoring logic and displayed status.
+
+---
+
+# Required Behavior
+
+Whenever a `/shop` check returns a positive result:
+
+* `up`
+* or `slow`
+
+the monitoring system must treat the site as AVAILABLE.
+
+The `/shop` result becomes an authoritative override for that check cycle.
+
+If the homepage is down but `/shop` is available:
+
+* site status must become UP (or SLOW if appropriate)
+* site must immediately leave Critical Bar
+* site must leave Down lists
+* incident resolution logic must run normally
+* recovery events must be generated
+* SSE updates must be broadcast
+* dashboard counters must update
+* UI must instantly reflect recovery
+
+No part of the system should continue showing the site as DOWN after a successful `/shop` override.
+
+---
+
+# New Per-Site Feature: "also /shop"
+
+Add a new site-level option named:
+
+"also /shop"
+
+This option should be available from the site's right-click context menu.
+
+Behavior:
+
+When enabled for a site:
+
+For EVERY check type:
+
+* normal monitoring
+* manual checks
+* sweep checks
+* server rechecks
+* final rechecks
+* any future monitoring path
+
+the system must automatically check:
+
+1. primary URL
+2. `/shop` URL
+
+without waiting for sweep phases.
+
+---
+
+# Override Rules For "also /shop"
+
+If homepage is UP:
+
+* use homepage result normally.
+
+If homepage is DOWN but `/shop` is UP or SLOW:
+
+* treat site as AVAILABLE.
+* effective site status should reflect `/shop`.
+* display `/shop` status in UI.
+* do not create or maintain incidents.
+* do not enter Critical Bar.
+
+If both are DOWN:
+
+* site is DOWN.
+
+The result must be deterministic and centralized.
+
+Avoid duplicate logic scattered across the codebase.
+
+Create a reusable status-resolution layer if needed.
+
+---
+
+# Data Model
+
+Add a persistent boolean field:
+
+alsoShop
+
+(default: false)
+
+Store it in the same place as other per-site flags such as pause/currently-fine related settings.
+
+Create migration if necessary.
+
+Expose through:
+
+* API
+* dashboard
+* SSE payloads
+* site detail endpoints
+
+where appropriate.
+
+---
+
+# UI Requirements
+
+Add a new badge:
+
+also /shop
+
+similar in style and size to:
+
+* Pause
+* Currently Fine
+
+The badge must appear consistently in:
+
+* Grid View
+* List View
+* Any other site card representations
+
+The badge should immediately update when toggled.
+
+---
+
+# Context Menu
+
+Add a right-click action:
+
+Enable also /shop
+Disable also /shop
+
+depending on current state.
+
+The toggle should update immediately without page refresh.
+
+---
+
+# Logging Requirements
+
+The entire mechanism must be fully integrated with:
+
+* Event Log
+* Live Console
+* Monitoring Logs
+
+Add explicit messages such as:
+
+Homepage DOWN → checking /shop
+
+/shop returned UP → overriding status
+
+/shop override resolved incident
+
+Site recovered via /shop override
+
+Include enough detail for operators to understand why the site was marked UP.
+
+---
+
+# Architecture Requirements
+
+Please do not implement this as a quick patch.
+
+Review:
+
+* monitoring engine
+* incident processing
+* status resolution
+* SSE broadcasting
+* dashboard state
+* critical bar logic
+* site cards
+* context menu actions
+
+Create a clean centralized solution so all monitoring paths produce consistent results.
+
+Refactor existing `/shop` fallback logic if necessary.
+
+You are free to improve the design if you find a cleaner architecture, as long as all requirements above are satisfied and existing behavior remains stable.
+
+Please explain:
+
+1. what parts of the code were changed
+2. why they were changed
+3. how the final status resolution flow works
+4. how future monitoring paths will automatically support this feature

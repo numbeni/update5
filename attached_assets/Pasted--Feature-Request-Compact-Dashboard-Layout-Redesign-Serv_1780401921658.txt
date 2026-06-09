@@ -1,0 +1,194 @@
+# Feature Request: Compact Dashboard Layout Redesign + Server-Oriented Column View
+
+Please analyze the existing dashboard layout before implementing changes.
+
+## Current Problem
+
+The current Compact View does not scale well when monitoring large numbers of servers and websites.
+
+When many sites exist:
+
+* excessive vertical scrolling is required
+* fullscreen space is not utilized efficiently
+* large empty areas may exist
+* operators cannot quickly scan all monitored sites
+
+The current layout becomes inefficient for high-density monitoring environments.
+
+---
+
+# Goal
+
+Redesign the Compact View to maximize information density while maintaining readability.
+
+The objective is:
+
+* fit significantly more sites on screen
+* reduce unnecessary scrolling
+* utilize horizontal screen space efficiently
+* improve operational visibility for large deployments
+
+---
+
+# New Compact Layout
+
+Instead of the current flow layout, organize the compact dashboard into SERVER COLUMNS.
+
+Structure:
+
+SERVER A
+
+* Site A
+* Site B
+* Site C
+* Site D
+
+SERVER B
+
+* Site A
+* Site B
+* Site C
+
+SERVER C
+
+* Site A
+* Site B
+* Site C
+* Site D
+* Site E
+
+Each server becomes the header of a vertical column.
+
+All sites belonging to that server are displayed directly beneath it.
+
+Columns should be displayed side-by-side across the available dashboard width.
+
+When space allows:
+
+SERVER A | SERVER B | SERVER C | SERVER D
+
+with each server owning its own vertical stack of sites.
+
+---
+
+# Sorting Rules
+
+Server ordering:
+
+* maintain current server ordering logic if one already exists
+* otherwise sort consistently and predictably
+
+Within each server:
+
+* all sites must be sorted alphabetically
+* sorting must be case-insensitive
+* sorting must remain stable after updates
+
+Example:
+
+Server 1
+
+* apple.com
+* beta.com
+* gamma.com
+* zeta.com
+
+Server 2
+
+* alpha.net
+* bravo.net
+* omega.net
+
+---
+
+# Fullscreen Optimization
+
+The redesign should specifically optimize fullscreen usage.
+
+Requirements:
+
+* maximize screen utilization
+* minimize wasted whitespace
+* reduce scrolling as much as possible
+* allow operators to see more sites simultaneously
+
+Responsive behavior should remain smooth.
+
+The system should intelligently use available width before introducing additional vertical scrolling.
+
+---
+
+# List View Changes
+
+Apply the same logical ordering to List View.
+
+Required order:
+
+Server 1
+
+* sites sorted alphabetically
+
+Server 2
+
+* sites sorted alphabetically
+
+Server 3
+
+* sites sorted alphabetically
+
+The grouping hierarchy should always be:
+
+Server → Sites
+
+rather than a global mixed site list.
+
+---
+
+# Live Updates
+
+The new layout must remain fully compatible with:
+
+* SSE updates
+* live status changes
+* filtering
+* searching
+* pause mode
+* currently fine
+* also /shop badge
+* critical state updates
+
+No manual refresh should be required.
+
+---
+
+# Performance Requirements
+
+This dashboard may contain large numbers of sites.
+
+Please:
+
+* avoid unnecessary re-renders
+* avoid expensive DOM recalculations
+* preserve smooth scrolling and UI responsiveness
+* use memoization/virtualization where beneficial
+
+---
+
+# Architecture Freedom
+
+You are free to redesign the component structure if a cleaner solution exists.
+
+Focus on:
+
+* operator efficiency
+* density of information
+* readability
+* scalability to large numbers of monitored sites
+
+Please explain:
+
+1. which dashboard components were changed
+2. how server-column grouping works
+3. how sorting is implemented
+4. how live updates interact with the new layout
+5. any performance optimizations introduced

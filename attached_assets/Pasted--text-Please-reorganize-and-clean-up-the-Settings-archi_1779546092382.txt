@@ -1,0 +1,131 @@
+```text
+Please reorganize and clean up the Settings architecture to make it more professional, logical, and operational for a real NOC monitoring system.
+
+The current Settings page has useful features, but some sections are in the wrong place, some concepts are fragmented, and some advanced/maintenance settings are too visible for normal operators.
+
+The goal is to make Settings:
+- cleaner
+- more scalable
+- easier to understand
+- more role-oriented
+- more operationally logical
+
+You are also free to improve the Settings UX and grouping further if you find a better professional structure.
+
+---
+
+## 1. Remove “Currently Fine Duration” from main Settings
+
+The “Currently Fine Duration” section does not feel like a global system setting.
+
+It is more related to the behavior of a specific action.
+
+Please:
+- remove it from the main Settings page
+- keep the actual “Currently Fine” feature working
+- keep the context/right-click menu action
+- if needed, move this configuration closer to the action itself or into Operator Preferences
+- avoid breaking existing functionality
+
+Goal:
+Main Settings should not contain isolated action-specific options that clutter the UI.
+
+---
+
+## 2. Merge “Display” and “Theme / Appearance”
+
+Currently:
+- Display
+- Theme / Appearance
+
+feel fragmented.
+
+Please merge them into one clean section:
+
+“Appearance & Display”
+
+This section should contain:
+- Theme (Light / Dark / System)
+- Language
+- Default dashboard view
+- Sites view mode
+- Dashboard density
+- Auto refresh interval
+- Date/time format
+- Sidebar default state
+- Chart default time range
+- Any other visual/UI preferences
+
+Goal:
+All appearance and interface preferences should live in one unified place.
+
+---
+
+## 3. Restrict “Data Retention” visibility
+
+“Data Retention” is an advanced maintenance-level feature and should not be highly visible to normal operators.
+
+Please:
+- make this section visible only for Founder/Admin/high-level roles
+- move it into a grouped section like:
+  - “Maintenance”
+  - or “Data & Maintenance”
+
+This section can also include:
+- cleanup tasks
+- export/import
+- retention cleanup
+- database maintenance
+
+Goal:
+Operators should not accidentally interact with maintenance-level controls.
+
+---
+
+## 4. Improve DNS Resolver management
+
+The DNS Resolver section needs more advanced resolver management and prioritization.
+
+Operators should be able to control resolver order and strategy.
+
+Add support for:
+- resolver priority/order
+- move up / move down
+- enable / disable resolver
+- test resolver
+- set preferred resolver
+
+Add resolver strategy options such as:
+- System DNS first
+- Custom DNS first
+- Built-in DNS first
+- Fastest resolver auto-select
+
+Goal:
+For local/internal monitoring environments, operators may want internal/custom DNS resolvers checked before Cloudflare/Google DNS.
+
+This can improve:
+- monitoring speed
+- DNS reliability
+- local website resolution behavior
+
+---
+
+## 5. Final Settings cleanup
+
+After implementing these changes:
+- make sure all Settings sections are grouped logically
+- remove fragmentation and duplicated concepts
+- avoid random standalone sections
+- keep advanced options separated from normal operator settings
+- make the Settings page feel cleaner and more enterprise/NOC-oriented
+
+The final Settings experience should feel:
+- organized
+- scalable
+- role-aware
+- professional
+- operationally logical
+
+If you find additional Settings cleanup opportunities during implementation, feel free to improve them as long as the UX becomes cleaner and more professional.
+```

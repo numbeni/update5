@@ -1,0 +1,441 @@
+# Product Check Monitoring Integration Upgrade
+
+Before making any changes, thoroughly inspect the entire codebase and understand how the current monitoring system, diagnostics system, live console, logging, incidents, alerts, dashboard, site details, sweep engine, manual checks, scheduled checks, and Product Check implementation currently work.
+
+Do not assume anything.
+
+Review the existing architecture first and then design the best possible implementation.
+
+Use your judgment to integrate this feature in the cleanest, most maintainable, most scalable, and most performant way possible.
+
+---
+
+## Existing Product Check Logic Must Remain Unchanged
+
+The current Product Check implementation already works correctly and is already used inside Diagnostics.
+
+This existing implementation must remain the single source of truth.
+
+Do not redesign it.
+
+Do not replace it.
+
+Do not simplify it.
+
+Do not create a second Product Check implementation.
+
+Do not create a lightweight version.
+
+Do not create a monitoring-specific version.
+
+Do not duplicate any Product Check logic.
+
+When Product Check is executed during monitoring, it must use the exact same Product Check workflow that is currently executed inside Diagnostics.
+
+This includes:
+
+* Product discovery logic
+* Homepage discovery
+* Sitemap discovery
+* Product URL extraction
+* Product URL selection
+* Product validation
+* Product success/failure determination
+* Existing response validation rules
+* Existing diagnostics behavior
+
+The monitoring system should invoke the existing Product Check process rather than implementing a new one.
+
+The goal is very simple:
+
+Run the existing Diagnostics Product Check automatically during monitoring whenever Product Check is enabled for a site.
+
+There must be only one Product Check implementation in the entire project.
+
+Diagnostics and Monitoring must always use the same underlying Product Check logic so results remain consistent.
+
+---
+
+## Background
+
+The platform already contains a Product Check feature.
+
+The feature already supports:
+
+* Product discovery
+* Product URL extraction
+* Homepage discovery
+* Sitemap discovery
+* Product validation
+* Product diagnostics
+* Enable Product Check setting
+
+The existing implementation works and must remain the source of truth.
+
+Reuse existing logic wherever possible.
+
+---
+
+# Main Goal
+
+Today Product Check is mostly used through Diagnostics.
+
+We want Product Check to become part of the monitoring lifecycle for sites where it is enabled.
+
+Whenever a site has Product Check enabled:
+
+* Scheduled monitoring runs must execute Product Check.
+* Sweep monitoring runs must execute Product Check.
+* Manual monitoring runs must execute Product Check.
+* Retry/Recheck monitoring runs must execute Product Check.
+* Any monitoring workflow that evaluates a site's health should also evaluate Product Check.
+
+The Product Check should continue using the existing discovery and validation logic.
+
+Only one valid product sample is required per monitoring cycle.
+
+The goal is simply:
+
+"Can at least one real product page load correctly?"
+
+---
+
+# IMPORTANT
+
+Do NOT create a separate Product Monitor.
+
+Do NOT create a second monitoring system.
+
+Do NOT create duplicate monitoring jobs.
+
+Do NOT create a parallel incident system.
+
+Do NOT create a parallel status engine.
+
+Do NOT create a parallel Product Check workflow.
+
+Do NOT create a new Product Check service.
+
+Do NOT create duplicate Product Check code.
+
+Instead:
+
+Integrate Product Check into the existing monitoring lifecycle.
+
+Product Check should behave as an additional validation layer that participates in final status calculation.
+
+The existing architecture should remain intact.
+
+---
+
+# User Visibility Requirement
+
+This is extremely important.
+
+Operators must be able to clearly see Product Check activity while monitoring is happening.
+
+Currently users can see monitoring activity through:
+
+* Live Console
+* Logs
+* Site Status
+* Active Incidents
+* Critical Area
+* Dashboard
+* Site Details
+
+Product Check activity must be visible and understandable throughout the system.
+
+The operator should never wonder:
+
+"Did Product Check run?"
+
+or
+
+"What happened during Product Check?"
+
+The system should clearly show it.
+
+---
+
+# Live Console Requirements
+
+This is one of the most important requirements.
+
+Product Check activity must be visible in the Live Console in real time.
+
+Not after completion.
+
+Not only in diagnostics.
+
+While it is happening.
+
+When a site is being monitored and Product Check is enabled, the operator should be able to see Product Check activity occurring live.
+
+Examples:
+
+product
+ExampleSite
+starting product check
+
+product
+ExampleSite
+discovering product url
+
+product
+ExampleSite
+checking /product/example-slug
+
+product
+ExampleSite
+product ok (214ms)
+
+or
+
+product
+ExampleSite
+product failed
+
+The exact format may be improved if there is a better way that matches the project's console design.
+
+However:
+
+* Keep it compact.
+* Keep it consistent with existing console style.
+* Do not create noise.
+* Do not redesign the console.
+* Do not create a separate console stream.
+
+The operator should be able to follow Product Check execution in real time.
+
+---
+
+# Logging Requirements
+
+Logs must also reflect Product Check activity.
+
+At minimum:
+
+* Product Check started
+* Product URL selected
+* Product validation result
+* Product response time
+* Product status outcome
+* Final monitoring status impact
+
+Avoid excessive logging.
+
+Avoid log spam.
+
+But make troubleshooting possible.
+
+Logging should remain consistent with the current platform style.
+
+---
+
+# Site Context Menu Requirement
+
+Add Product Check management to the site context menu (right click menu) where appropriate.
+
+Operators should be able to quickly:
+
+* Enable Product Check
+* Disable Product Check
+
+without needing to open diagnostics.
+
+Follow existing UI patterns.
+
+Do not introduce a different interaction style.
+
+---
+
+# Monitoring Behavior
+
+For sites where Product Check is enabled:
+
+1. Run the normal monitoring process.
+2. Calculate the site's normal monitoring status.
+3. Execute the existing Product Check logic.
+4. Validate one discovered product URL using the existing Product Check implementation.
+5. Use both results to derive the final status.
+
+Product Check should run automatically whenever monitoring runs.
+
+This includes:
+
+* Scheduled monitoring
+* Sweep monitoring
+* Manual checks
+* Retry checks
+* Rechecks
+* Any workflow that evaluates a site's health
+
+---
+
+# Status Behavior
+
+Homepage Status + Product Status should produce meaningful final statuses.
+
+If homepage is healthy and product page is healthy:
+
+→ Existing behavior remains unchanged.
+
+If homepage is healthy but product page fails:
+
+→ Create and surface a Product Page Issue state.
+
+Users should immediately understand:
+
+"The website is reachable, but product pages are failing."
+
+If homepage fails but product page succeeds:
+
+→ Create and surface a Homepage Issue / Product OK state.
+
+Users should immediately understand:
+
+"The homepage is failing, but product pages still work."
+
+If both fail:
+
+→ Existing DOWN behavior remains.
+
+You may improve naming if a better naming convention exists in the project.
+
+---
+
+# Critical Bar / Active Issues Requirement
+
+This is important.
+
+If a product page failure affects final site health:
+
+The issue must appear in:
+
+* Critical bar
+* Active issues
+* Incident area
+* Status indicators
+* Dashboard summaries
+
+The reason must be obvious.
+
+The operator should instantly understand that the problem is specifically related to Product Pages.
+
+Avoid generic failure messages.
+
+---
+
+# Diagnostics Improvements
+
+The Diagnostics page already contains Product Check functionality.
+
+Enhance it.
+
+Provide visibility for:
+
+* Last automatic Product Check
+* Last manual Product Check
+* Last checked product URL
+* Last successful product URL
+* Last result
+* Last response time
+* Discovery source
+* Product Check enabled status
+
+Operators should easily verify that automatic Product Check monitoring is working.
+
+---
+
+# History & Persistence
+
+Integrate Product Check results into existing monitoring history mechanisms.
+
+Do not create a completely separate history system.
+
+Store useful information including:
+
+* Timestamp
+* Product URL
+* Result
+* Response time
+* Status impact
+
+Reuse existing monitoring history patterns.
+
+---
+
+# Performance Requirements
+
+Performance is critical.
+
+The implementation must:
+
+* Reuse existing Product Check logic.
+* Avoid duplicate requests.
+* Avoid duplicate discovery operations.
+* Avoid unnecessary sitemap parsing.
+* Avoid excessive database writes.
+* Avoid slowing down monitoring cycles.
+* Scale efficiently across many monitored sites.
+
+The feature should feel native to the monitoring engine.
+
+---
+
+# Integration Requirements
+
+Review the entire project and ensure Product Check is properly integrated with:
+
+* Monitoring Engine
+* Sweep Engine
+* Manual Checks
+* Retry Checks
+* Status Calculation
+* Incident Processing
+* Dashboard
+* Site Details
+* Diagnostics
+* Alerts
+* Notifications
+* Live Console
+* Logs
+* Historical Records
+* APIs
+* Real-time Updates
+* Critical Bar
+* Active Issues
+
+Do not implement this partially.
+
+Implement it as a fully integrated platform capability.
+
+---
+
+# Final Objective
+
+The objective is not to build a new Product Check system.
+
+The objective is to automatically execute the existing Diagnostics Product Check during monitoring whenever Product Check is enabled for a site.
+
+The implementation must:
+
+* Reuse existing Product Check logic.
+* Remain fully synchronized with Diagnostics.
+* Provide real-time visibility in Live Console.
+* Provide visibility in Logs.
+* Affect site status appropriately.
+* Integrate with incidents and critical issues.
+* Remain performant and scalable.
+* Feel like a native part of the existing monitoring platform.
+
+Before completing the work, verify that Product Check functions correctly in:
+
+* Scheduled monitoring
+* Sweep runs
+* Manual checks
+* Retry checks
+* Rechecks
+
+and ensure operators can clearly observe Product Check execution and results through both Live Console and Logs.

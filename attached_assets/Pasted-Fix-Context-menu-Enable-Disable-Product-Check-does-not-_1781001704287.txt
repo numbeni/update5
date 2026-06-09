@@ -1,0 +1,47 @@
+Fix: Context menu "Enable/Disable Product Check" does not reflect actual state
+Read artifacts/noc-monitor/src/pages/dashboard.tsx carefully before making any changes.
+Root cause:
+SiteContextMenu receives site as a prop from the parent. After handleToggleProductCheck calls onRefetch() which calls queryClient.invalidateQueries(), the React Query cache is invalidated but the refetch is async. The context menu can be re-opened before the new data arrives, so site.productCheckEnabled still holds the old value and shows the wrong menu item.
+Additionally staleTime: 20000 on useListSites means the cache is considered fresh for 20 seconds — so a manual invalidation may not immediately trigger a new network request in all cases.
+Required fix — two changes only:
+Change 1: In handleToggleProductCheck inside SiteContextMenu, after the successful PATCH response, add an optimistic local state update so the context menu immediately reflects the new value without waiting for the server refetch.
+Add a useState for productCheckEnabled inside SiteContextMenu, initialized from site.productCheckEnabled. Use this local state to control the context menu condition instead of site.productCheckEnabled directly. Update this local state immediately on successful toggle, then call onRefetch().
+tsx// Inside SiteContextMenu component:
+const [productCheckEnabled, setProductCheckEnabled] = useState(site.productCheckEnabled);
+
+// Keep in sync if parent re-renders with new data:
+useEffect(() => {
+  setProductCheckEnabled(site.productCheckEnabled);
+}, [site.productCheckEnabled]);
+
+async function handleToggleProductCheck(enabled: boolean) {
+  try {
+    const r = await fetch(`/api/sites/${site.id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productCheckEnabled: enabled }),
+    });
+    if (!r.ok) throw new Error();
+    setProductCheckEnabled(enabled); // optimistic update
+    toast({ title: enabled ? t("dash.productCheckEnableSuccess") : t("dash.productCheckDisableSuccess") });
+    onRefetch();
+  } catch {
+    toast({ title: t("dash.productCheckError"), variant: "destructive" });
+  }
+}
+And in the context menu JSX, use local productCheckEnabled state instead of site.productCheckEnabled:
+tsx{productCheckEnabled ? (
+  <ContextMenuItem onClick={() => handleToggleProductCheck(false)}>
+    ...disable...
+  </ContextMenuItem>
+) : (
+  <ContextMenuItem onClick={() => handleToggleProductCheck(true)}>
+    ...enable...
+  </ContextMenuItem>
+)}
+Change 2: Apply the same pattern to handleToggleAlsoShop as well, since it has the identical bug.
+Do not change anything else.
+Do not modify any backend files.
+Do not modify any other frontend files.
+Only apply this fix to SiteContextMenu in dashboard.tsx.

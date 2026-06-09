@@ -1,0 +1,358 @@
+# Product Check Rework and UI Integration Fix
+
+The previous implementation does not match the intended behavior.
+
+Before making new changes, review the current implementation and understand how Product Check is currently integrated.
+
+The goal of this task is to correct the Product Check workflow, simplify product discovery, improve operator visibility, and fully integrate Product Check status into the monitoring UI.
+
+---
+
+# 1. Context Menu Improvements
+
+Currently Product Check can be enabled from the site context menu.
+
+This is incomplete.
+
+When Product Check is enabled for a site, the same context menu must also provide a clear option to disable it.
+
+Required behavior:
+
+* If Product Check is disabled:
+
+  * Show "Enable Product Check"
+
+* If Product Check is enabled:
+
+  * Show "Disable Product Check"
+
+The menu should always reflect the current state.
+
+Use the same interaction pattern as other site actions.
+
+---
+
+# 2. Product Check Badge
+
+Operators need immediate visibility.
+
+For every site that has Product Check enabled:
+
+Display a dedicated Product Check badge on the site card.
+
+This badge should be visible in all site display modes including:
+
+* Grid View
+* List View
+* Any alternative site card layouts
+
+The behavior should be similar to the existing Pause Site badge.
+
+The operator should immediately recognize:
+
+"This site has Product Check enabled."
+
+without opening the site details page.
+
+---
+
+# 3. Completely Simplify Product Discovery
+
+The current discovery mechanism is too broad.
+
+Modify:
+
+artifacts/api-server/src/monitoring/product-check.ts
+
+Product discovery must be simplified.
+
+---
+
+## Homepage Discovery Rules
+
+Only accept URLs whose pathname begins with:
+
+/product/
+
+Examples:
+
+Valid:
+
+/product/example-item
+
+/product/ea-sports-fc-26
+
+Invalid:
+
+/products/
+
+/shop/
+
+/store/
+
+/items/
+
+/category/
+
+/collection/
+
+/cart/
+
+/checkout/
+
+/p/
+
+Any other pattern
+
+Only real product pages under /product/ should be considered.
+
+---
+
+## Remove Sitemap Fallback Completely
+
+Remove sitemap fallback entirely.
+
+Do not:
+
+* Parse sitemap.xml
+* Parse product sitemaps
+* Perform sitemap discovery
+* Attempt secondary product discovery through sitemaps
+
+If homepage scanning finds no valid /product/ URL:
+
+Return:
+
+unknown
+
+and stop.
+
+No additional discovery attempts should occur.
+
+This new behavior must be used everywhere Product Check is executed, including Diagnostics and Monitoring.
+
+There must be only one Product Check implementation.
+
+---
+
+# 4. Monitoring Integration
+
+When Product Check is enabled for a site:
+
+Every monitoring execution should use Product Check.
+
+Including:
+
+* Scheduled monitoring
+* Sweep monitoring
+* Manual checks
+* Rechecks
+* Retry checks
+* Any other monitoring execution path
+
+However:
+
+If the site's base status is already DOWN:
+
+Skip Product Check entirely.
+
+Do not waste requests.
+
+Do not increase sweep duration unnecessarily.
+
+---
+
+# 5. Product Verification Behavior
+
+When Product Check runs:
+
+Use the existing discovery workflow.
+
+Find one valid product URL.
+
+Example:
+
+https://xgamesstore.org/product/ea-sports-fc-26/
+
+Only one successful product sample is required.
+
+Verify that the product page loads correctly.
+
+This should be a fast validation.
+
+The objective is:
+
+Can at least one real product page load successfully?
+
+---
+
+# 6. Status Integration
+
+The result must affect monitoring status.
+
+If:
+
+Homepage = Healthy
+
+Product = Healthy
+
+Result:
+
+Normal status remains unchanged.
+
+---
+
+If:
+
+Homepage = Healthy
+
+Product = Failed
+
+Create and surface a Product Page Issue status.
+
+Operators must immediately understand:
+
+"The website is reachable but product pages are failing."
+
+---
+
+If:
+
+Homepage = Down
+
+Product Check is skipped.
+
+Existing Down behavior remains unchanged.
+
+---
+
+# 7. Critical Bar Integration
+
+This is mandatory.
+
+When Product Check fails:
+
+The issue must appear in:
+
+* Critical Bar
+* Active Issues
+* Incident Area
+* Dashboard Status Indicators
+
+The reason must be obvious.
+
+Do not display a generic error.
+
+The operator must immediately see that the issue is specifically related to Product Pages.
+
+Examples:
+
+Product Page Failure
+
+Product Check Failed
+
+Product Pages Unreachable
+
+Any clear wording is acceptable.
+
+---
+
+# 8. Site Details Integration
+
+Product Check state must be clearly visible on the site's main page.
+
+Operators should be able to see:
+
+* Product Check Enabled/Disabled
+* Last Product Check Result
+* Product Check Status
+* Last Product URL Checked
+
+without navigating deep into Diagnostics.
+
+---
+
+# 9. Live Console Integration
+
+Product Check activity must be visible while it is running.
+
+Examples:
+
+product
+SiteName
+product check started
+
+product
+SiteName
+checking /product/example-item
+
+product
+SiteName
+product ok
+
+or
+
+product
+SiteName
+product failed
+
+This should happen in real time.
+
+The operator must be able to follow Product Check execution live.
+
+Keep the format compact.
+
+Do not redesign the console.
+
+---
+
+# 10. Logging
+
+Product Check activity must be visible in logs.
+
+Include:
+
+* Product Check Start
+* Product URL Selected
+* Product Validation Result
+* Product Check Success
+* Product Check Failure
+* Final Status Impact
+
+Avoid excessive logging.
+
+Keep logs readable.
+
+---
+
+# 11. Diagnostics Consistency
+
+Diagnostics must use the exact same Product Check implementation as Monitoring.
+
+Monitoring must use the exact same Product Check implementation as Diagnostics.
+
+There must not be separate logic paths.
+
+There must not be duplicate discovery mechanisms.
+
+There must be one shared Product Check implementation used everywhere.
+
+---
+
+# 12. Final Verification
+
+Before completing the work verify:
+
+* Enable Product Check works
+* Disable Product Check works
+* Product badge appears in Grid View
+* Product badge appears in List View
+* Product Check works in Diagnostics
+* Product Check works in Monitoring
+* Product Check works in Sweep
+* Product Check appears in Live Console
+* Product Check appears in Logs
+* Product failures appear in Critical Bar
+* Product status appears on the Site Details page
+
+The final implementation should make Product Check feel like a native monitoring capability that is fully visible to operators across the platform.

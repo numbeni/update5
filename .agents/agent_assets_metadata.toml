@@ -1,0 +1,14 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "QzeeV8T2DtqKNaJO2XOCd"
+uri = "file://docs/USER_GUIDE_FA.md"
+type = "text"
+title = "راهنمای کاربری فارسی"
+
+[[outputs]]
+id = "wlzIrD7JqrL0unZhruL1c"
+uri = "file://docs/USER_GUIDE_EN.md"
+type = "text"
+title = "English User Guide"

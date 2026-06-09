@@ -1,0 +1,217 @@
+Please improve the final recheck phase of the monitoring sweep.
+
+Important:
+Do not change the normal manual check behavior.
+Do not change the first pass or second pass behavior.
+This change must apply ONLY to the final sweep phase where critical/down sites are being confirmed before final incident/status decision.
+
+Goal:
+In the final phase of the sweep, for sites that are already considered critical/down and are waiting for final confirmation, run 5 confirmation checks per site instead of only 1.
+
+Reason:
+This helps confirm whether the site is truly down or if the previous failures were temporary/flaky network issues.
+
+---
+
+## Required behavior
+
+During the final phase:
+
+For each site in the critical/down final recheck list:
+
+- Run 5 checks
+- Collect all results
+- Decide final status based on the 5 attempts
+
+Suggested decision logic:
+
+1. If 3 or more out of 5 checks are UP:
+   - Treat site as recovered / not truly down
+   - Do not mark as final down
+   - Do not create critical incident
+
+2. If 3 or more out of 5 checks are DOWN / critical:
+   - Confirm site as down
+   - Mark as final down
+   - Create/update incident if needed
+
+3. If results are mixed:
+   - Mark site as unstable / degraded
+   - Log clearly that final recheck had mixed results
+
+You may improve this logic if there is a more suitable existing status model.
+
+---
+
+## Scope limitation
+
+This 5x check behavior must apply ONLY to:
+
+- final recheck phase
+- down/critical sites
+- last phase of automatic sweep
+
+It must NOT apply to:
+
+- manual single-site Run Check
+- normal automatic first pass
+- second pass
+- queue manual checks
+- normal site detail diagnostics
+
+---
+
+## Live Console integration
+
+This final 5x recheck must be fully visible in Live Console.
+
+For each attempt, log something like:
+
+Final recheck attempt 1/5 for example.com
+Final recheck attempt 2/5 for example.com
+Final recheck attempt 3/5 for example.com
+...
+
+After all attempts, log summary:
+
+Final recheck summary for example.com:
+2/5 UP, 3/5 DOWN — confirmed DOWN
+
+or:
+
+Final recheck summary for example.com:
+4/5 UP — false alarm / recovered
+
+or:
+
+Final recheck summary for example.com:
+2/5 UP, 2/5 DOWN, 1/5 SLOW — marked UNSTABLE
+
+Use the existing console event system and translations if available.
+
+---
+
+## Sweep status/progress bar integration
+
+This change must be reflected in the sweep progress/status UI.
+
+When final recheck is running:
+
+- Show that the sweep phase is:
+  Final Recheck
+- Show current site being rechecked
+- Show attempt number:
+  Attempt 1/5
+  Attempt 2/5
+  ...
+- Update progress correctly
+
+Example UI text:
+Final recheck: example.com — attempt 3/5
+
+If there is a queue/status bar/live-state system, update it so the operator can see:
+
+- phase: final_recheck
+- site name
+- attempt number
+- total attempts
+- current result
+- final summary
+
+---
+
+## Backend state/live-state requirements
+
+If the backend exposes live monitoring state, include these fields if useful:
+
+- phase: "final_recheck"
+- finalRecheckSiteId
+- finalRecheckSiteName
+- finalRecheckAttempt
+- finalRecheckTotalAttempts: 5
+- finalRecheckResults
+- finalRecheckSummary
+
+Keep compatibility with existing live-state shape.
+
+---
+
+## Performance rules
+
+Do not make normal monitoring unnecessarily slow.
+
+This 5x check only happens for sites that are already in the final critical/down list.
+
+Use reasonable delay between attempts if needed, but keep it short.
+
+Suggested:
+- 500ms to 1000ms between attempts
+- no long blocking delay
+
+If possible, make the number configurable later, but default should be 5.
+
+---
+
+## Settings option if practical
+
+If easy, add a setting:
+
+Final recheck attempts:
+default: 5
+minimum: 1
+maximum: 10
+
+But if this adds too much complexity, hardcode 5 for now.
+
+---
+
+## Audit/logging
+
+This should be logged clearly enough that operators can understand why a site was or was not marked down.
+
+Important:
+Do not spam unrelated logs.
+Only log meaningful attempt and summary events.
+
+---
+
+## Testing checklist
+
+Please test:
+
+1. A site that is truly down
+   - Final phase runs 5 attempts
+   - Site is confirmed down if majority fails
+
+2. A flaky site
+   - Some attempts pass, some fail
+   - Site becomes unstable/degraded instead of immediately down
+
+3. A false alarm
+   - Most final attempts pass
+   - Site is not marked down
+
+4. Live Console
+   - Shows attempt 1/5 through 5/5
+
+5. Sweep progress/status bar
+   - Shows final recheck phase and attempt number
+
+6. Manual check
+   - Still runs only once
+   - Does not perform 5 attempts
+
+---
+
+## Final report
+
+After implementation, explain:
+
+1. Where final recheck logic was changed.
+2. How the 5 attempts are executed.
+3. How the final decision is calculated.
+4. How Live Console shows the attempts.
+5. How sweep status/progress shows the attempts.
+6. How manual checks remain unchanged.
+7. What files were changed.
+8. How to test the behavior.

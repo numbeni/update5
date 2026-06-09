@@ -1,0 +1,89 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NOC Monitor — Docker Compose (self-hosted production stack)
+#
+# Quick start:
+#   1. cp .env.example .env.production
+#   2. Edit .env.production (set POSTGRES_PASSWORD, ALLOWED_ORIGINS, etc.)
+#   3. docker compose --env-file .env.production up -d
+#   4. docker compose --env-file .env.production exec app \
+#        node -e "
+#          import('@workspace/db').then(({db}) => console.log('ok'))
+#        "  ← optional DB connectivity check
+#
+# After schema changes:
+#   docker compose --env-file .env.production run --rm db-migrate
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-noc_monitor}
+      POSTGRES_USER: ${POSTGRES_USER:-noc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-noc} -d ${POSTGRES_DB:-noc_monitor}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Not exposed to host by default — only the app container connects internally.
+    # Uncomment to access from host (e.g. pgAdmin):
+    # ports:
+    #   - "5432:5432"
+
+  # ── DB schema migration (run once or on deploy) ────────────────────────────
+  db-migrate:
+    build:
+      context: .
+      target: builder
+    command: pnpm --filter @workspace/db run push-force
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-noc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-noc_monitor}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - migrate
+
+  # ── NOC Monitor app ────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-noc}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-noc_monitor}
+      # Restrict CORS to your domain (comma-separated if multiple):
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      # Optional: Nextcloud Talk alerts
+      NEXTCLOUD_TALK_URL: ${NEXTCLOUD_TALK_URL:-}
+      NEXTCLOUD_TALK_USER: ${NEXTCLOUD_TALK_USER:-}
+      NEXTCLOUD_TALK_PASSWORD: ${NEXTCLOUD_TALK_PASSWORD:-}
+      NEXTCLOUD_TALK_ROOM: ${NEXTCLOUD_TALK_ROOM:-}
+      # Optional: Telegram alerts
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-5000}:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/api/auth/setup-status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  postgres_data:
+    driver: local

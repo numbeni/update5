@@ -1,0 +1,164 @@
+Please improve and separate the DNS Resolver system and Diagnostics system to make monitoring faster, cleaner, and more operationally correct for a real NOC environment.
+
+Right now some diagnostics behavior feels mixed into normal monitoring checks, which may be slowing down the monitoring engine and making the system less predictable.
+
+The goal is:
+
+- Normal Monitoring = fast and lightweight
+- Diagnostics = deep and optional
+
+You are free to improve the architecture further if you find a better professional approach.
+
+---
+
+## 1. Improve DNS Resolver Management
+
+The current DNS Resolver system needs advanced resolver management and prioritization.
+
+Operators should be able to fully control resolver behavior and order.
+
+Please add:
+
+### Resolver priority/order
+- Move up / move down
+- Drag & drop ordering if practical
+- Set preferred resolver
+- Enable / disable resolver
+- Test resolver manually
+
+### Resolver strategy modes
+Add selectable resolver strategies such as:
+
+- System DNS first
+- Custom DNS first
+- Built-in DNS first
+- Fastest resolver auto-select
+
+Goal:
+For local/internal monitoring environments, operators may want internal/custom DNS resolvers tested before Cloudflare/Google.
+
+This can improve:
+- monitoring speed
+- DNS reliability
+- local website resolution behavior
+
+---
+
+## 2. Separate Diagnostics from normal Monitoring
+
+Diagnostics features should not automatically run during normal lightweight monitoring unless explicitly needed.
+
+Please create or improve a dedicated “Diagnostics” configuration section.
+
+Diagnostics-related features include:
+- Curl diagnostics
+- Product/category checks
+- Advanced DNS records
+- Deep HTTP diagnostics
+- SSL chain analysis
+- Multi-resolver deep testing
+- Deep response/body analysis
+
+These should feel separate from normal operational monitoring.
+
+---
+
+## 3. Monitoring vs Diagnostics behavior
+
+Make the distinction very clear:
+
+### Normal Monitoring
+Should be:
+- fast
+- lightweight
+- operational
+- optimized for sweeps and manual checks
+
+Normal monitoring should usually only run:
+- DNS check
+- HTTP check
+- TCP check
+- basic SSL check
+
+Avoid heavy diagnostics during normal checks.
+
+---
+
+### Diagnostics
+Should be:
+- deeper
+- slower
+- optional
+- operator-triggered
+- used for troubleshooting
+
+Diagnostics may run:
+- advanced DNS record analysis
+- curl diagnostics
+- body/content analysis
+- product/category detection
+- SSL chain inspection
+- multi-step diagnostics
+
+---
+
+## 4. Add Diagnostics Settings
+
+Add settings such as:
+
+- Enable Curl Diagnostic
+- Enable Product/Category Check
+- Run diagnostics automatically: yes/no
+- Product check manual-only: yes/no
+- Diagnostics timeout
+- Max URLs/content checks
+- Deep diagnostics mode enabled/disabled
+
+Goal:
+Heavy diagnostics should not always affect normal monitoring speed.
+
+---
+
+## 5. Performance optimization goal
+
+One of the main goals of this change is improving monitoring speed.
+
+Currently, some heavy checks may be affecting:
+- manual Run Check
+- automatic sweeps
+- queue processing
+
+Please review the monitoring pipeline carefully and ensure:
+- lightweight checks stay lightweight
+- diagnostics are separated
+- unnecessary repeated DNS checks are avoided
+- unnecessary body downloads are avoided
+- deep checks only run when required
+
+---
+
+## 6. Final cleanup
+
+After implementation:
+- Settings should feel cleaner and more logical
+- DNS management should feel professional
+- Diagnostics should feel like an advanced toolkit
+- Monitoring should feel fast and operational
+- Advanced/diagnostic behavior should not clutter normal workflows
+
+If you find additional opportunities to improve the monitoring/diagnostics separation or DNS performance architecture, feel free to implement the most professional and scalable solution possible.
+
+---
+
+## 7. Final report
+
+After implementation, explain:
+1. What changed in the DNS resolver system.
+2. How resolver priority/order works.
+3. What resolver strategies were added.
+4. What diagnostics were separated from normal monitoring.
+5. Which diagnostics are still automatic.
+6. Which diagnostics became optional/manual.
+7. What was optimized for speed.
+8. What files/components/settings were changed.
+9. How to test the new DNS and Diagnostics behavior.
